@@ -85,7 +85,7 @@ void restore_folder(const char *dir, std::vector<raw_file> &files);
 std::string find_apk_path(const char *pkg);
 #endif
 
-int mkdirs(std::string path, mode_t mode);
+int mkdirs(const char *path, mode_t mode);
 void rm_rf(const char *path);
 void full_read(int fd, std::string &str);
 void full_read(const char *filename, std::string &str);
