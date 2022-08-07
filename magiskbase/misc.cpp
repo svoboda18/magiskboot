@@ -1,17 +1,19 @@
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/prctl.h>
-#include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <syscall.h>
 #include <random>
 #include <string>
 
 #include <base.hpp>
 
 using namespace std;
+
+#ifndef SVB_WIN32
+#include <sys/prctl.h>
+#include <sys/sysmacros.h>
+#include <syscall.h>
 
 int fork_dont_care() {
     if (int pid = xfork()) {
@@ -175,7 +177,7 @@ int switch_mnt_ns(int pid) {
     close(fd);
     return ret;
 }
-
+#endif
 string &replace_all(string &str, string_view from, string_view to) {
     size_t pos = 0;
     while((pos = str.find(from, pos)) != string::npos) {

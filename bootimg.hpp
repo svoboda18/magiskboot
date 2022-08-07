@@ -5,6 +5,10 @@
 #include <bitset>
 #include "format.hpp"
 
+#if defined(SVB_WIN32) && defined(SVB_MINGW)
+#include "libnt.h"
+#endif
+
 /******************
  * Special Headers
  *****************/

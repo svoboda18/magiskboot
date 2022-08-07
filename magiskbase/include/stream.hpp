@@ -1,6 +1,8 @@
 #pragma once
 
+#if defined(SVB_WIN32) && !defined(SVB_MINGW)
 #include <sys/uio.h>
+#endif
 #include <cstdio>
 #include <memory>
 
@@ -98,8 +100,11 @@ class fd_stream : public file_stream {
 public:
     fd_stream(int fd) : fd(fd) {}
     ssize_t read(void *buf, size_t len) override;
+#ifndef NO_READ_WRITE_V
     ssize_t readv(const iovec *iov, int iovcnt) override;
     ssize_t writev(const iovec *iov, int iovcnt) override;
+#endif
+
     off_t seek(off_t off, int whence) override;
 protected:
     ssize_t do_write(const void *buf, size_t len) override;

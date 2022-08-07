@@ -1,8 +1,12 @@
 #pragma once
 
+#if defined(SVB_WIN32) && defined(SVB_MINGW)
+#include "mman.h"
+#else
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <mntent.h>
+#endif
+#include <sys/stat.h>
 #include <functional>
 #include <string_view>
 #include <string>
@@ -58,10 +62,9 @@ struct mmap_data : public byte_data {
     mmap_data& operator=(mmap_data &&other) { swap(other); return *this; }
 };
 
+#ifndef SVB_WIN32
 ssize_t fd_path(int fd, char *path, size_t size);
 int fd_pathat(int dirfd, const char *name, char *path, size_t size);
-int mkdirs(std::string path, mode_t mode);
-void rm_rf(const char *path);
 void mv_path(const char *src, const char *dest);
 void mv_dir(int src, int dest);
 void cp_afc(const char *src, const char *dest);
@@ -75,6 +78,15 @@ int setattrat(int dirfd, const char *name, file_attr *a);
 int fsetattr(int fd, file_attr *a);
 void fclone_attr(int src, int dest);
 void clone_attr(const char *src, const char *dest);
+void clone_dir(int src, int dest);
+void parse_mnt(const char *file, const std::function<bool(mntent*)> &fn);
+void backup_folder(const char *dir, std::vector<raw_file> &files);
+void restore_folder(const char *dir, std::vector<raw_file> &files);
+std::string find_apk_path(const char *pkg);
+#endif
+
+int mkdirs(std::string path, mode_t mode);
+void rm_rf(const char *path);
 void full_read(int fd, std::string &str);
 void full_read(const char *filename, std::string &str);
 std::string full_read(int fd);
@@ -87,11 +99,6 @@ void parse_prop_file(FILE *fp, const std::function<bool(std::string_view, std::s
 void parse_prop_file(const char *file,
         const std::function<bool(std::string_view, std::string_view)> &fn);
 void frm_rf(int dirfd);
-void clone_dir(int src, int dest);
-void parse_mnt(const char *file, const std::function<bool(mntent*)> &fn);
-void backup_folder(const char *dir, std::vector<raw_file> &files);
-void restore_folder(const char *dir, std::vector<raw_file> &files);
-std::string find_apk_path(const char *pkg);
 
 using sFILE = std::unique_ptr<FILE, decltype(&fclose)>;
 using sDIR = std::unique_ptr<DIR, decltype(&closedir)>;

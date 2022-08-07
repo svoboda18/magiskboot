@@ -18,6 +18,9 @@
 using namespace std;
 
 #define bwrite this->base->write
+#ifdef SVB_WIN32
+#define crc32_z crc32
+#endif
 
 constexpr size_t CHUNK = 0x40000;
 constexpr size_t LZ4_UNCOMPRESSED = 0x800000;

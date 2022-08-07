@@ -1,14 +1,20 @@
+#ifndef SVB_WIN32
 #include <sys/sendfile.h>
 #include <linux/fs.h>
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <libgen.h>
 
 #include <base.hpp>
+#ifndef SVB_WIN32
 #include <selinux.hpp>
+#endif
 
 using namespace std;
 
+#ifndef SVB_WIN32
 ssize_t fd_path(int fd, char *path, size_t size) {
     snprintf(path, size, "/proc/self/fd/%d", fd);
     return xreadlink(path, path, size);
@@ -22,6 +28,7 @@ int fd_pathat(int dirfd, const char *name, char *path, size_t size) {
     strlcpy(path + len + 1, name, size - len - 1);
     return 0;
 }
+#endif
 
 int mkdirs(string path, mode_t mode) {
     errno = 0;
@@ -101,6 +108,7 @@ void frm_rf(int dirfd) {
     post_order_walk(dirfd, remove_at);
 }
 
+#ifndef SVB_WIN32
 void mv_path(const char *src, const char *dest) {
     file_attr attr;
     getattr(src, &attr);
@@ -285,6 +293,7 @@ void fclone_attr(int src, int dest) {
     fgetattr(src, &a);
     fsetattr(dest, &a);
 }
+#endif
 
 void full_read(int fd, string &str) {
     char buf[4096];
@@ -345,6 +354,7 @@ void file_readline(bool trim, const char *file, const function<bool(string_view)
     if (auto fp = open_file(file, "re"))
         file_readline(trim, fp.get(), fn);
 }
+
 void file_readline(const char *file, const function<bool(string_view)> &fn) {
     file_readline(false, file, fn);
 }
@@ -367,6 +377,7 @@ void parse_prop_file(const char *file, const function<bool(string_view, string_v
         parse_prop_file(fp.get(), fn);
 }
 
+#ifndef SVB_WIN32
 // Original source: https://android.googlesource.com/platform/bionic/+/master/libc/bionic/mntent.cpp
 // License: AOSP, full copyright notice please check original source
 static struct mntent *compat_getmntent_r(FILE *fp, struct mntent *e, char *buf, int buf_len) {
@@ -448,6 +459,7 @@ void restore_folder(const char *dir, vector<raw_file> &files) {
         setattr(path.data(), &file.attr);
     }
 }
+#endif
 
 sDIR make_dir(DIR *dp) {
     return sDIR(dp, [](DIR *dp){ return dp ? closedir(dp) : 1; });
@@ -499,6 +511,7 @@ mmap_data::mmap_data(const char *name, bool rw) {
     struct stat st;
     if (fstat(fd, &st))
         return;
+#ifndef SVB_WIN32
     if (S_ISBLK(st.st_mode)) {
         uint64_t size;
         ioctl(fd, BLKGETSIZE64, &size);
@@ -506,6 +519,9 @@ mmap_data::mmap_data(const char *name, bool rw) {
     } else {
         sz = st.st_size;
     }
+#else
+    sz = st.st_size;
+#endif
     void *b = sz > 0
             ? xmmap(nullptr, sz, PROT_READ | PROT_WRITE, rw ? MAP_SHARED : MAP_PRIVATE, fd, 0)
             : nullptr;
@@ -513,6 +529,7 @@ mmap_data::mmap_data(const char *name, bool rw) {
     buf = static_cast<uint8_t *>(b);
 }
 
+#ifndef SVB_WIN32
 string find_apk_path(const char *pkg) {
     char buf[PATH_MAX];
     pre_order_walk(xopen("/data/app", O_RDONLY), [&](int dfd, dirent *entry) -> walk_result {
@@ -529,3 +546,4 @@ string find_apk_path(const char *pkg) {
     string path(buf);
     return path.append("/base.apk");
 }
+#endif

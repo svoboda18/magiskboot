@@ -2,6 +2,10 @@
 
 #include <stdint.h>
 
+#if defined(SVB_WIN32) && defined(SVB_MINGW)
+#include "libnt.h"
+#endif
+
 #define DT_TABLE_MAGIC  "\xd7\xb7\xab\x1e"
 #define QCDT_MAGIC      "QCDT"
 #define DTBH_MAGIC      "DTBH"

@@ -2,8 +2,39 @@
 
 #include <dirent.h>
 #include <stdio.h>
-#include <poll.h>
 #include <fcntl.h>
+#if defined(SVB_WIN32) && defined(SVB_MINGW)
+#include <sys/types.h>
+#include <pthread.h>
+#include <ws2tcpip.h>
+#endif
+#if defined(SVB_WIN32) && !defined(SVB_MINGW)
+#include <poll.h>
+#include <cygwin/socket.h>
+#endif
+
+#ifndef SVB_WIN32
+pid_t xfork();
+int xsetns(int fd, int nstype);
+int xunshare(int flags);
+int xmount(const char *source, const char *target,
+           const char *filesystemtype, unsigned long mountflags,
+           const void *data);
+int xumount(const char *target);
+int xumount2(const char *target, int flags);
+int xinotify_init1(int flags);
+int xmknod(const char *pathname, mode_t mode, dev_t dev);
+long xptrace(int request, pid_t pid, void *addr = nullptr, void *data = nullptr);
+static inline long xptrace(int request, pid_t pid, void *addr, uintptr_t data) {
+    return xptrace(request, pid, addr, reinterpret_cast<void *>(data));
+}
+#else
+int xxsymlink(char *target, const char *file);
+#endif
+
+#if defined(SVB_WIN32) && !defined(SVB_MINGW)
+int xpoll(struct pollfd *fds, nfds_t nfds, int timeout);
+#endif
 
 FILE *xfopen(const char *pathname, const char *mode);
 FILE *xfdopen(int fd, const char *mode);
@@ -16,8 +47,7 @@ ssize_t xread(int fd, void *buf, size_t count);
 ssize_t xxread(int fd, void *buf, size_t count);
 off_t xlseek(int fd, off_t offset, int whence);
 int xpipe2(int pipefd[2], int flags);
-int xsetns(int fd, int nstype);
-int xunshare(int flags);
+
 DIR *xopendir(const char *name);
 DIR *xfdopendir(int fd);
 struct dirent *xreaddir(DIR *dirp);
@@ -48,24 +78,11 @@ int xfaccessat(int dirfd, const char *pathname);
 int xsymlink(const char *target, const char *linkpath);
 int xsymlinkat(const char *target, int newdirfd, const char *linkpath);
 int xlinkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
-int xmount(const char *source, const char *target,
-           const char *filesystemtype, unsigned long mountflags,
-           const void *data);
-int xumount(const char *target);
-int xumount2(const char *target, int flags);
 int xrename(const char *oldpath, const char *newpath);
 int xmkdir(const char *pathname, mode_t mode);
 int xmkdirs(const char *pathname, mode_t mode);
 int xmkdirat(int dirfd, const char *pathname, mode_t mode);
 void *xmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count);
-pid_t xfork();
-int xpoll(struct pollfd *fds, nfds_t nfds, int timeout);
-int xinotify_init1(int flags);
 char *xrealpath(const char *path, char *resolved_path);
-int xmknod(const char *pathname, mode_t mode, dev_t dev);
-long xptrace(int request, pid_t pid, void *addr = nullptr, void *data = nullptr);
-static inline long xptrace(int request, pid_t pid, void *addr, uintptr_t data) {
-    return xptrace(request, pid, addr, reinterpret_cast<void *>(data));
-}
 #define WEVENT(s) (((s) & 0xffff0000) >> 16)

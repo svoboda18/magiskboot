@@ -156,6 +156,7 @@ std::string &replace_all(std::string &str, std::string_view from, std::string_vi
 std::vector<std::string> split(const std::string &s, const std::string &delims);
 std::vector<std::string_view> split_ro(std::string_view, std::string_view delims);
 
+#ifndef SVB_WIN32
 struct exec_t {
     bool err = false;
     int fd = -2;
@@ -192,3 +193,4 @@ void exec_command_async(Args &&...args) {
     };
     exec_command(exec);
 }
+#endif

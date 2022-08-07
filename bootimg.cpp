@@ -10,6 +10,12 @@
 #include "magiskboot.hpp"
 #include "compress.hpp"
 
+#ifdef SVB_WIN32
+#define off64_t off_t
+#define lseek64 lseek
+#define ftruncate64 ftruncate
+#endif
+
 using namespace std;
 
 uint32_t dyn_img_hdr::j32 = 0;

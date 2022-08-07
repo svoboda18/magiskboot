@@ -7,7 +7,9 @@
 #include <mntent.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifndef SVB_WIN32
 #include <sys/syscall.h>
+#endif
 #include <sys/stat.h>
 
 extern "C" {
@@ -67,7 +69,7 @@ int endmntent(FILE *fp) {
 }
 
 // Missing system call wrappers
-
+#ifndef SVB_WIN32
 int setns(int fd, int nstype) {
     return syscall(__NR_setns, fd, nstype);
 }
@@ -120,6 +122,7 @@ int ftruncate64(int fd, off64_t length) {
 int ftruncate64(int fd, off64_t length) {
     return syscall(__NR_ftruncate64, fd, SPLIT_64(length));
 }
+#endif
 #endif
 
 #if !defined(__LP64__)

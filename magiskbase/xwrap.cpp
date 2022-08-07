@@ -6,9 +6,14 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
+#ifndef SVB_WIN32
 #include <sys/sendfile.h>
 #include <sys/ptrace.h>
 #include <sys/inotify.h>
+#else
+#include <errno.h>
+#include "windows.h"
+#endif
 
 #include <base.hpp>
 
@@ -67,7 +72,7 @@ ssize_t xwrite(int fd, const void *buf, size_t count) {
     size_t write_sz = 0;
     ssize_t ret;
     do {
-        ret = write(fd, (byte *) buf + write_sz, count - write_sz);
+        ret = write(fd, (::byte *) buf + write_sz, count - write_sz);
         if (ret < 0) {
             if (errno == EINTR)
                 continue;
@@ -96,7 +101,7 @@ ssize_t xxread(int fd, void *buf, size_t count) {
     size_t read_sz = 0;
     ssize_t ret;
     do {
-        ret = read(fd, (byte *) buf + read_sz, count - read_sz);
+        ret = read(fd, (::byte *) buf + read_sz, count - read_sz);
         if (ret < 0) {
             if (errno == EINTR)
                 continue;
@@ -127,6 +132,7 @@ int xpipe2(int pipefd[2], int flags) {
     return ret;
 }
 
+#ifndef SVB_WIN32
 int xsetns(int fd, int nstype) {
     int ret = setns(fd, nstype);
     if (ret < 0) {
@@ -142,6 +148,7 @@ int xunshare(int flags) {
     }
     return ret;
 }
+#endif
 
 DIR *xopendir(const char *name) {
     DIR *d = opendir(name);
@@ -381,6 +388,40 @@ int xsymlink(const char *target, const char *linkpath) {
     return ret;
 }
 
+#ifdef SVB_WIN32
+#define SYMLINK_ID "!<symlink>\xff\xfe"
+#define SYMLINK_PAD "\x0"
+int xxsymlink(char *target, const char *file)
+{
+    int retval = 0;
+    bool pad = strchr(target, '/');
+
+    FILE *lnk = fopen(file, "wb");
+    if (!lnk) {
+        fprintf(stderr, "Error creating %s\n", file);
+        return -1;
+    }
+
+    retval = fprintf(lnk, SYMLINK_ID);
+
+    char *c = target;
+    while(*c && retval > 0) {
+        retval |= putc(*c++, lnk);
+        if (pad) retval |= putc(0, lnk);
+    }
+
+    retval |= fwrite(SYMLINK_PAD, 1, sizeof(SYMLINK_PAD), lnk);
+
+    if (retval < 0 || !SetFileAttributes(file, FILE_ATTRIBUTE_SYSTEM)) {
+        retval = -1;
+        PLOGE("symlink %s->%s", target, file);
+    }
+
+    fclose(lnk);
+    return retval;
+}
+#endif
+
 int xsymlinkat(const char *target, int newdirfd, const char *linkpath) {
     int ret = symlinkat(target, newdirfd, linkpath);
     if (ret < 0) {
@@ -397,6 +438,7 @@ int xlinkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath
     return ret;
 }
 
+#ifndef SVB_WIN32
 int xmount(const char *source, const char *target,
     const char *filesystemtype, unsigned long mountflags,
     const void *data) {
@@ -422,6 +464,7 @@ int xumount2(const char *target, int flags) {
     }
     return ret;
 }
+#endif
 
 int xrename(const char *oldpath, const char *newpath) {
     int ret = rename(oldpath, newpath);
@@ -465,6 +508,7 @@ void *xmmap(void *addr, size_t length, int prot, int flags,
     return ret;
 }
 
+#ifndef SVB_WIN32
 ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     ssize_t ret = sendfile(out_fd, in_fd, offset, count);
     if (ret < 0) {
@@ -472,7 +516,38 @@ ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     }
     return ret;
 }
+#else
+ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
+    ssize_t bytes = 0;
 
+    while (count) {
+        char buf[count];
+        ssize_t read;
+        if (offset)
+            read = pread(in_fd, buf, count, *offset);
+        else
+            read = xread(in_fd, buf, count);
+        if (read < 0) {
+            bytes = -1;
+            break;
+        }
+        ssize_t write = xwrite(out_fd, buf, read);
+        if (write < 0 || read != write) {
+            bytes = -1;
+            break;
+        }
+        count -= read;
+        bytes += write;
+    }
+    
+    if (bytes == -1)
+        PLOGE("sendfile");
+
+    return bytes;
+}
+#endif
+
+#ifndef SVB_WIN32
 pid_t xfork() {
     int ret = fork();
     if (ret < 0) {
@@ -496,6 +571,7 @@ int xinotify_init1(int flags) {
     }
     return ret;
 }
+#endif
 
 char *xrealpath(const char *path, char *resolved_path) {
     char buf[PATH_MAX];
@@ -508,6 +584,7 @@ char *xrealpath(const char *path, char *resolved_path) {
     return ret;
 }
 
+#ifndef SVB_WIN32
 int xmknod(const char *pathname, mode_t mode, dev_t dev) {
     int ret = mknod(pathname, mode, dev);
     if (ret < 0) {
@@ -522,3 +599,4 @@ long xptrace(int request, pid_t pid, void *addr, void *data) {
         PLOGE("ptrace %d", pid);
     return ret;
 }
+#endif

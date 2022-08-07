@@ -131,8 +131,6 @@ Supported actions:
 }
 
 int main(int argc, char *argv[]) {
-    cmdline_logging();
-    umask(0);
 
     if (argc < 2)
         usage(argv[0]);

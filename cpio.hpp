@@ -6,6 +6,10 @@
 #include <map>
 #include <string_view>
 
+#if defined(SVB_WIN32) && defined(SVB_MINGW)
+#include "libnt.h"
+#endif
+
 struct cpio_newc_header;
 
 struct cpio_entry {

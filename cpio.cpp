@@ -84,11 +84,17 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
     } else if (S_ISREG(e.second->mode)) {
         int fd = creat(file, e.second->mode & 0777);
         xwrite(fd, e.second->data, e.second->filesize);
+#ifndef SVB_WIN32
         fchown(fd, e.second->uid, e.second->gid);
+#endif
         close(fd);
     } else if (S_ISLNK(e.second->mode)) {
         auto target = strndup((char *) e.second->data, e.second->filesize);
+#ifdef SVB_WIN32
+        xxsymlink(target, file);
+#else
         symlink(target, file);
+#endif
         free(target);
     }
 }

@@ -6,12 +6,12 @@
 
 using namespace std;
 
-static int strm_read(void *v, char *buf, int len) {
+static int strm_read(void *v, char *buf, size_t len) {
     auto strm = static_cast<stream *>(v);
     return strm->read(buf, len);
 }
 
-static int strm_write(void *v, const char *buf, int len) {
+static int strm_write(void *v, const char *buf, size_t len) {
     auto strm = static_cast<stream *>(v);
     if (!strm->write(buf, len))
         return -1;
