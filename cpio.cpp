@@ -48,6 +48,77 @@ cpio_entry::cpio_entry(const cpio_newc_header *h) :
 mode(x8u(h->mode)), uid(x8u(h->uid)), gid(x8u(h->gid)), filesize(x8u(h->filesize)), data(nullptr)
 {}
 
+static void read_config(const char* config, const char* entry, uint32_t* mode) {
+    if (access(config, F_OK) != 0)
+        return;
+
+    file_readline(config, [&](string_view line) -> bool {
+        if (line.empty() || line[0] == '#')
+            return true;
+        auto tokens = split(string(line), " ");
+
+        if (tokens.size() < 2) {
+            fprintf(stderr, "Ill-formed line in [%s]\n", config);
+            return false;
+        } else if (tokens[0] == entry) {
+            *mode = static_cast<unsigned int>(strtol(tokens[1].data(), nullptr, 8));
+            return false;
+        }
+
+        return true;
+    });
+}
+
+static cpio::entry_map recursive_dir_iterator(const char* root, const char* config, const char *sub = nullptr) {
+    cpio::entry_map entries;
+    auto path = sub ? sub : root;
+    auto d = opendir(path);
+
+    if (errno || !d)
+        return entries;
+
+    for (dirent *entry; (entry = xreaddir(d));) {
+        char *filename = (char *)xmalloc(strlen(entry->d_name) + strlen(path) + 2);
+        struct stat st;
+
+        if (sprintf(filename, "%s/%s", path, entry->d_name) < 0 ||
+            xlstat(filename, &st)) {
+            break;
+        }
+
+        auto name = filename + strlen(root) + 1;
+        auto type = st.st_mode & S_IFMT;
+        auto mode = st.st_mode & 0777;
+        /* TODO: read uid, gid from config */
+        read_config(config, name, &mode);
+
+        auto e = new cpio_entry(type | mode);
+        if (type == S_IFREG) {
+            auto m = mmap_data(filename);
+            e->filesize = m.sz;
+            e->data = xmalloc(m.sz);
+            memcpy(e->data, m.buf, m.sz);
+        } else if (type == S_IFLNK) {
+            char* ln_target = (char *)xmalloc(st.st_size + 1);
+            int read_cnt = xreadlink(filename, ln_target, st.st_size + 1);
+
+            if (read_cnt == -1 || read_cnt > st.st_size) {
+                free(ln_target);
+                break;
+            }
+            e->filesize = st.st_size;
+            e->data = move(ln_target);
+        } else if (type == S_IFDIR) {
+            entries.merge(recursive_dir_iterator(root, config, filename));
+        }
+        entries.emplace(name, e);
+        free(filename);
+    }
+
+    closedir(d);
+    return entries;
+}
+
 void cpio::dump(const char *file) {
     fprintf(stderr, "Dump cpio: [%s]\n", file);
     dump(xfopen(file, "we"));
@@ -97,11 +168,74 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
 #endif
         free(target);
     }
+#ifdef SVB_WIN32
+    FILE *config = fopen("cpio", "a");
+    /* TODO: add uid, gid to config */
+    fprintf(config, "%s %o\n", e.first.data(), e.second->mode & 0777);
+    fclose(config);
+#endif
 }
 
 void cpio::extract() {
+    unlink("cpio");
+    rmdir("ramdisk");
+    ::mkdir("ramdisk", 0744);
     for (auto &e : entries)
-        extract_entry(e, e.first.data());
+        extract_entry(e, ("ramdisk/" + e.first).data());
+}
+
+void cpio::load_cpio(const char* dir, const char* config, bool sync) {
+    auto dentries = recursive_dir_iterator(dir, config);
+
+    if (errno != 0) {
+        PLOGE("%s [%s]", sync ? "Sync" : "Pack", dir);
+        return;
+    }
+
+    if (!sync) {
+        entries = move(dentries);
+        return;
+    }
+
+    auto rhs = entries.begin();
+    auto lhs = dentries.begin();
+
+    while (rhs != entries.end() || lhs != dentries.end()) {
+        int res;
+        if (lhs != dentries.end() && rhs != entries.end()) {
+            res = rhs->first.compare(lhs->first);
+        } else if (rhs == entries.end()) {
+            res = 1;
+        } else {
+            res = -1;
+        }
+
+        bool is_new = res >= 0;
+
+        if (res < 0) { // smh is removed
+            rm(rhs++);
+        } else if (res == 0) { // smh is same, maybe
+            is_new = rhs->second->filesize != lhs->second->filesize ||
+                     (rhs->second->mode & 0777) != (lhs->second->mode & 0777) ||
+                     memcmp(lhs->second->data, rhs->second->data, lhs->second->filesize) != 0;
+        } // smh is added
+
+        if (is_new) {
+            if (rhs != entries.end()) {
+                lhs->second->gid = rhs->second->gid;
+                lhs->second->gid = rhs->second->uid;
+            }
+            fprintf(stderr, "%s entry [%s] (%04o)\n", res > 0 ? "Add new" : "Updated", lhs->first.data(), lhs->second->mode & 0777);
+            insert(lhs->first, lhs->second.release());
+        }
+
+        /* always erase lhs */
+        if (res >= 0) {
+            lhs->second.reset();
+            lhs = dentries.erase(lhs);
+            if (res == 0) ++rhs;
+        }
+    }
 }
 
 bool cpio::extract(const char *name, const char *file) {

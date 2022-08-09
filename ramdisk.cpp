@@ -231,11 +231,20 @@ void magisk_cpio::backup(const char *orig) {
 }
 
 int cpio_commands(int argc, char *argv[]) {
+    magisk_cpio cpio;
+
+    /* pack doesn`t need incpio */
+    if (argc >= 3 && argv[0] == "pack"sv) {
+        bool c = argc == 5 && argv[1] == "-c"sv;
+        cpio.load_cpio(argv[1 + 2*c], c ? argv[2] : "cpio", false);
+        cpio.dump(argv[2 + 2*c]);
+        return 0;
+    }
+
     char *incpio = argv[0];
     ++argv;
     --argc;
 
-    magisk_cpio cpio;
     if (access(incpio, R_OK) == 0)
         cpio.load_cpio(incpio);
 
@@ -285,6 +294,8 @@ int cpio_commands(int argc, char *argv[]) {
                 cpio.extract();
                 return 0;
             }
+        } else if (cmdv[0] == "sync"sv) {
+            cpio.load_cpio("ramdisk", "cpio", true);
         } else if (cmdc == 3 && cmdv[0] == "mkdir"sv) {
             cpio.mkdir(strtoul(cmdv[1], nullptr, 8), cmdv[2]);
         } else if (cmdc == 3 && cmdv[0] == "ln"sv) {

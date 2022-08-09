@@ -35,6 +35,7 @@ public:
     using entry_map = std::map<std::string, std::unique_ptr<cpio_entry>, StringCmp>;
 
     void load_cpio(const char *file);
+    void load_cpio(const char* dir, const char* config, bool sync);
     void dump(const char *file);
     void rm(const char *name, bool r = false);
     void extract();

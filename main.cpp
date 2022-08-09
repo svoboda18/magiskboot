@@ -66,7 +66,12 @@ Supported actions:
       add MODE ENTRY INFILE
         Add INFILE as ENTRY in permissions MODE; replaces ENTRY if exists
       extract [ENTRY OUT]
-        Extract ENTRY to OUT, or extract all entries to current directory
+        Extract ENTRY to OUT, or extract all entries to "ramdisk" directory.
+        Creates "cpio" config file to support modes changes in Windows.
+      sync
+        Synchronize "ramdisk" directory with incpio entries.
+        Reads entries mode from "cpio" config.
+        Any changes will be captured and dumped to incpio.
       test
         Test the cpio's status
         Return value is 0 or bitwise or-ed of following values:
@@ -80,6 +85,9 @@ Supported actions:
         Restore ramdisk from ramdisk backup stored within incpio
       sha1
         Print stock boot SHA1 if previously backed up in ramdisk
+  cpio pack [-c <config>] <infolder> <outcpio>
+    Creates <outcpio> from <infolder> entries.
+    Entries mode are read from <config> ("cpio" if undefined) to support changing modes in Windows.
 
   dtb <file> <action> [args...]
     Do dtb related actions to <file>
