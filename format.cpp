@@ -35,7 +35,7 @@ format_t check_fmt(const void *buf, size_t len) {
     } else if (CHECKED_MATCH(DHTB_MAGIC)) {
         return DHTB;
     } else if (CHECKED_MATCH(TEGRABLOB_MAGIC)) {
-        return BLOB;
+        return BLOB_FMT;
     } else if (len >= 0x28 && memcmp(&((char *)buf)[0x24], ZIMAGE_MAGIC, 4) == 0) {
         return ZIMAGE;
     } else {

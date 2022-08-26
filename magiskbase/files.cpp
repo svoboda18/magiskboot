@@ -14,6 +14,11 @@
 
 using namespace std;
 
+#ifdef SVB_MINGW
+#include "libnt.h"
+#define mkdir(y, x) mkdir(y)
+#endif
+
 #ifndef SVB_WIN32
 ssize_t fd_path(int fd, char *path, size_t size) {
     snprintf(path, size, "/proc/self/fd/%d", fd);
@@ -51,6 +56,7 @@ int mkdirs(const char *path, mode_t mode) {
     return 0;
 }
 
+#ifndef SVB_MINGW
 template <typename Func>
 static void post_order_walk(int dirfd, const Func &fn) {
     auto dir = xopen_dir(dirfd);
@@ -97,6 +103,10 @@ static void remove_at(int dirfd, struct dirent *entry) {
     unlinkat(dirfd, entry->d_name, entry->d_type == DT_DIR ? AT_REMOVEDIR : 0);
 }
 
+void frm_rf(int dirfd) {
+    post_order_walk(dirfd, remove_at);
+}
+
 void rm_rf(const char *path) {
     struct stat st;
     if (lstat(path, &st) < 0)
@@ -105,10 +115,7 @@ void rm_rf(const char *path) {
         frm_rf(xopen(path, O_RDONLY | O_CLOEXEC));
     remove(path);
 }
-
-void frm_rf(int dirfd) {
-    post_order_walk(dirfd, remove_at);
-}
+#endif
 
 #ifndef SVB_WIN32
 void mv_path(const char *src, const char *dest) {
@@ -464,7 +471,11 @@ void restore_folder(const char *dir, vector<raw_file> &files) {
 #endif
 
 sDIR make_dir(DIR *dp) {
+#ifdef SVB_MINGW
+    return sDIR(dp);
+#else
     return sDIR(dp, [](DIR *dp){ return dp ? closedir(dp) : 1; });
+#endif
 }
 
 sFILE make_file(FILE *fp) {
@@ -525,7 +536,7 @@ mmap_data::mmap_data(const char *name, bool rw) {
     sz = st.st_size;
 #endif
     void *b = sz > 0
-            ? xmmap(nullptr, sz, PROT_READ | PROT_WRITE, rw ? MAP_SHARED : MAP_PRIVATE, fd, 0)
+            ? xmmap(nullptr, sz, rw ? PROT_READ | PROT_WRITE : PROT_READ, rw ? MAP_SHARED : MAP_PRIVATE, fd, 0)
             : nullptr;
     close(fd);
     buf = static_cast<uint8_t *>(b);

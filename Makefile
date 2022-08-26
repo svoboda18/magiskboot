@@ -3,6 +3,8 @@ override DEBUG := 0
 override STATIC := 0
 override SVB_FLAGS := -Wall -Wextra -DUSE_MMAP -DHOST -DSVB_WIN32 -DANDROID
 
+$(error MINGW builds not yet supported)
+
 ifeq ($(STATIC),1)
 override SVB_FLAGS := -static $(SVB_FLAGS)
 else
@@ -81,8 +83,7 @@ LIBBASE_SRC = \
     magiskbase/files.cpp \
     magiskbase/misc.cpp \
     magiskbase/xwrap.cpp \
-    magiskbase/stream.cpp \
-    magiskbase/compat/compat.cpp
+    magiskbase/stream.cpp
 LIBBASE_OBJ := $(patsubst %.cpp,$(OBJ)/%.o,$(LIBBASE_SRC))
 
 LIBMINCRYPT_SRC = \

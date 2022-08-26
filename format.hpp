@@ -9,7 +9,7 @@ typedef enum {
     AOSP,
     AOSP_VENDOR,
     DHTB,
-    BLOB,
+    BLOB_FMT,
 /* Compression formats */
     GZIP,
     ZOPFLI,

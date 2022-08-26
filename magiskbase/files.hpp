@@ -1,9 +1,6 @@
 #pragma once
-
-#if defined(SVB_WIN32) && defined(SVB_MINGW)
-#include "mman.h"
-#else
 #include <sys/mman.h>
+#ifndef SVB_WIN32
 #include <mntent.h>
 #endif
 #include <sys/stat.h>
@@ -100,8 +97,20 @@ void parse_prop_file(const char *file,
         const std::function<bool(std::string_view, std::string_view)> &fn);
 void frm_rf(int dirfd);
 
+#ifdef SVB_MINGW
+struct delDIR {
+    void operator()(DIR* p) const
+    {
+        if (p) closedir(p);
+    }
+};
+#endif
 using sFILE = std::unique_ptr<FILE, decltype(&fclose)>;
+#ifdef SVB_MINGW
+using sDIR = std::unique_ptr<DIR, delDIR>;
+#else
 using sDIR = std::unique_ptr<DIR, decltype(&closedir)>;
+#endif
 sDIR make_dir(DIR *dp);
 sFILE make_file(FILE *fp);
 
@@ -113,9 +122,11 @@ static inline sDIR xopen_dir(const char *path) {
     return make_dir(xopendir(path));
 }
 
+#ifndef SVB_MINGW
 static inline sDIR xopen_dir(int dirfd) {
     return make_dir(xfdopendir(dirfd));
 }
+#endif
 
 static inline sFILE open_file(const char *path, const char *mode) {
     return make_file(fopen(path, mode));

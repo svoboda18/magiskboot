@@ -1,9 +1,4 @@
-#if defined(SVB_WIN32) && defined(SVB_MINGW)
-#include "mman.h"
-#include "libnt.h"
-#else
 #include <sys/mman.h>
-#endif
 
 #include <base.hpp>
 

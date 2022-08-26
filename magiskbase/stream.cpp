@@ -29,11 +29,13 @@ static int strm_close(void *v) {
     return 0;
 }
 
+#ifndef SVB_MINGW
 sFILE make_stream_fp(stream_ptr &&strm) {
     auto fp = make_file(funopen(strm.release(), strm_read, strm_write, strm_seek, strm_close));
     setbuf(fp.get(), nullptr);
     return fp;
 }
+#endif
 
 ssize_t stream::read(void *buf, size_t len)  {
     LOGE("This stream does not implement read\n");
@@ -44,7 +46,7 @@ ssize_t stream::readFully(void *buf, size_t len) {
     size_t read_sz = 0;
     ssize_t ret;
     do {
-        ret = read((byte *) buf + read_sz, len - read_sz);
+        ret = read((::byte *) buf + read_sz, len - read_sz);
         if (ret < 0) {
             if (errno == EINTR)
                 continue;
@@ -249,7 +251,7 @@ bool file_stream::write(const void *buf, size_t len) {
     size_t write_sz = 0;
     ssize_t ret;
     do {
-        ret = do_write((byte *) buf + write_sz, len - write_sz);
+        ret = do_write((::byte *) buf + write_sz, len - write_sz);
         if (ret < 0) {
             if (errno == EINTR)
                 continue;

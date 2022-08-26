@@ -5,8 +5,8 @@ The most complete tool for unpacking and repacking Android boot images.
 
 ## Documentation
 - [MagiskBoot Documentation](https://topjohnwu.github.io/Magisk/tools.html#magiskboot)
-## Build
-- Using cygwin64 environment with `clang-8` and `libc++8`, run `make` command. (`magiskboot.exe` will appear in the `out` folder).
+## Build (not for the moment)
+- Using mingw64 environment with `clang`, run `make` command. (`magiskboot.exe` will appear in the `out` folder).
 - if built a non-static variant, all DLLs in `out/obj/lib/shared` must be present in your PATH for successful execution. 
 
 ## What's changed:
@@ -18,5 +18,5 @@ The most complete tool for unpacking and repacking Android boot images.
    * Creates `<outcpio>` from `<infolder>` entries, each entry mode is read from `<config>` (`cpio` if undefined).
 
 ## For Windows
-- There's alot of unexpected/undefined behaviours that needs to be addressed.
+- There's some UBs/SFs that needs to be addressed (test and report).
 - Tested and working operations are limited.

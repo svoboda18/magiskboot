@@ -1,15 +1,15 @@
 #include <sched.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mount.h>
 #include <sys/mman.h>
 #ifndef SVB_WIN32
+#include <sys/socket.h>
 #include <sys/sendfile.h>
 #include <sys/ptrace.h>
 #include <sys/inotify.h>
+#include <sys/mount.h>
 #else
 #include <errno.h>
 #include "windows.h"
@@ -36,6 +36,9 @@ FILE *xfdopen(int fd, const char *mode) {
 }
 
 int xopen(const char *pathname, int flags) {
+#ifdef SVB_MINGW
+    flags |= O_BINARY;
+#endif
     int fd = open(pathname, flags);
     if (fd < 0) {
         PLOGE("open: %s", pathname);
@@ -44,6 +47,9 @@ int xopen(const char *pathname, int flags) {
 }
 
 int xopen(const char *pathname, int flags, mode_t mode) {
+#ifdef SVB_MINGW
+    flags |= O_BINARY;
+#endif
     int fd = open(pathname, flags, mode);
     if (fd < 0) {
         PLOGE("open: %s", pathname);
@@ -51,6 +57,7 @@ int xopen(const char *pathname, int flags, mode_t mode) {
     return fd;
 }
 
+#ifndef SVB_MINGW
 int xopenat(int dirfd, const char *pathname, int flags) {
     int fd = openat(dirfd, pathname, flags);
     if (fd < 0) {
@@ -66,6 +73,7 @@ int xopenat(int dirfd, const char *pathname, int flags, mode_t mode) {
     }
     return fd;
 }
+#endif
 
 // Write exact same size as count
 ssize_t xwrite(int fd, const void *buf, size_t count) {
@@ -124,6 +132,7 @@ off_t xlseek(int fd, off_t offset, int whence) {
     return ret;
 }
 
+#ifndef SVB_MINGW
 int xpipe2(int pipefd[2], int flags) {
     int ret = pipe2(pipefd, flags);
     if (ret < 0) {
@@ -131,6 +140,7 @@ int xpipe2(int pipefd[2], int flags) {
     }
     return ret;
 }
+#endif
 
 #ifndef SVB_WIN32
 int xsetns(int fd, int nstype) {
@@ -158,6 +168,7 @@ DIR *xopendir(const char *name) {
     return d;
 }
 
+#ifndef SVB_MINGW
 DIR *xfdopendir(int fd) {
     DIR *d = fdopendir(fd);
     if (d == nullptr) {
@@ -165,6 +176,7 @@ DIR *xfdopendir(int fd) {
     }
     return d;
 }
+#endif
 
 struct dirent *xreaddir(DIR *dirp) {
     errno = 0;
@@ -182,6 +194,7 @@ struct dirent *xreaddir(DIR *dirp) {
     }
 }
 
+#ifndef SVB_WIN32
 pid_t xsetsid() {
     pid_t pid = setsid();
     if (pid < 0) {
@@ -221,6 +234,7 @@ int xaccept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
     }
     return fd;
 }
+#endif
 
 void *xmalloc(size_t size) {
     void *p = malloc(size);
@@ -246,6 +260,7 @@ void *xrealloc(void *ptr, size_t size) {
     return p;
 }
 
+#ifndef SVB_WIN32
 ssize_t xsendmsg(int sockfd, const struct msghdr *msg, int flags) {
     int sent = sendmsg(sockfd, msg, flags);
     if (sent < 0) {
@@ -270,7 +285,7 @@ int xpthread_create(pthread_t *thread, const pthread_attr_t *attr,
     }
     return errno;
 }
-
+#endif
 int xaccess(const char *path, int mode) {
     int ret = access(path, mode);
     if (ret < 0) {
@@ -303,6 +318,7 @@ int xfstat(int fd, struct stat *buf) {
     return ret;
 }
 
+#ifndef SVB_MINGW
 int xfstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
     int ret = fstatat(dirfd, pathname, buf, flags);
     if (ret < 0) {
@@ -310,6 +326,7 @@ int xfstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
     }
     return ret;
 }
+#endif
 
 int xdup(int fd) {
     int ret = dup(fd);
@@ -327,6 +344,7 @@ int xdup2(int oldfd, int newfd) {
     return ret;
 }
 
+#ifndef SVB_MINGW
 int xdup3(int oldfd, int newfd, int flags) {
     int ret = dup3(oldfd, newfd, flags);
     if (ret < 0) {
@@ -334,6 +352,7 @@ int xdup3(int oldfd, int newfd, int flags) {
     }
     return ret;
 }
+#endif
 
 ssize_t xreadlink(const char *pathname, char *buf, size_t bufsiz) {
     ssize_t ret = readlink(pathname, buf, bufsiz);
@@ -345,6 +364,7 @@ ssize_t xreadlink(const char *pathname, char *buf, size_t bufsiz) {
     return ret;
 }
 
+#ifndef SVB_MINGW
 ssize_t xreadlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz) {
     // readlinkat() may fail on x86 platform, returning random value
     // instead of number of bytes placed in buf (length of link)
@@ -379,7 +399,11 @@ int xfaccessat(int dirfd, const char *pathname) {
 #endif
     return ret;
 }
+#endif
 
+#if defined(SVB_WIN32) && !defined(SVB_MINGW)
+#define symlink xxsymlink
+#endif
 int xsymlink(const char *target, const char *linkpath) {
     int ret = symlink(target, linkpath);
     if (ret < 0) {
@@ -388,40 +412,41 @@ int xsymlink(const char *target, const char *linkpath) {
     return ret;
 }
 
-#ifdef SVB_WIN32
+#if defined SVB_WIN32 && !defined SVB_MINGW
 #define SYMLINK_ID "!<symlink>\xff\xfe"
-#define SYMLINK_PAD "\x0"
-int xxsymlink(char *target, const char *file)
+#define SYMLINK_IDLEN	strlen(SYMLINK_ID)
+#define SYMLINK_MAXSIZE	1024
+int xxsymlink(const char *target, const char *file)
 {
-    int retval = 0;
-    bool pad = strchr(target, '/');
+    int sz = strlen(target) + 1;
+    char buf[sz * sizeof(WCHAR)];
 
     FILE *lnk = fopen(file, "wb");
-    if (!lnk) {
-        fprintf(stderr, "Error creating %s\n", file);
+    if (!lnk || fprintf(lnk, SYMLINK_ID) < 0)
         return -1;
+
+    if (MultiByteToWideChar(CP_UTF8, 0, target, sz, (LPWSTR)buf, sz) != sz) {
+        errno = EINVAL;
+        sz = -1;
+        goto err;
     }
-
-    retval = fprintf(lnk, SYMLINK_ID);
-
-    char *c = target;
-    while(*c && retval > 0) {
-        retval |= putc(*c++, lnk);
-        if (pad) retval |= putc(0, lnk);
+    sz = fwrite(buf, 1, sizeof(buf), lnk);
+    if (sz != sizeof(buf)) {
+	sz = -1;
+        goto err;
     }
-
-    retval |= fwrite(SYMLINK_PAD, 1, sizeof(SYMLINK_PAD), lnk);
-
-    if (retval < 0 || !SetFileAttributes(file, FILE_ATTRIBUTE_SYSTEM)) {
-        retval = -1;
-        PLOGE("symlink %s->%s", target, file);
+    if (!SetFileAttributes(file, FILE_ATTRIBUTE_SYSTEM)) {
+        sz = -1;
+        goto err;
     }
-
+    sz = 0;
+err:
     fclose(lnk);
-    return retval;
+    return sz;
 }
 #endif
 
+#ifndef SVB_MINGW
 int xsymlinkat(const char *target, int newdirfd, const char *linkpath) {
     int ret = symlinkat(target, newdirfd, linkpath);
     if (ret < 0) {
@@ -437,6 +462,7 @@ int xlinkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath
     }
     return ret;
 }
+#endif
 
 #ifndef SVB_WIN32
 int xmount(const char *source, const char *target,
@@ -475,6 +501,9 @@ int xrename(const char *oldpath, const char *newpath) {
 }
 
 int xmkdir(const char *pathname, mode_t mode) {
+#ifdef SVB_MINGW
+#define mkdir(y, x) mkdir(y)
+#endif
     int ret = mkdir(pathname, mode);
     if (ret < 0 && errno != EEXIST) {
         PLOGE("mkdir %s %u", pathname, mode);
@@ -490,6 +519,7 @@ int xmkdirs(const char *pathname, mode_t mode) {
     return ret;
 }
 
+#ifndef SVB_MINGW
 int xmkdirat(int dirfd, const char *pathname, mode_t mode) {
     int ret = mkdirat(dirfd, pathname, mode);
     if (ret < 0 && errno != EEXIST) {
@@ -497,6 +527,7 @@ int xmkdirat(int dirfd, const char *pathname, mode_t mode) {
     }
     return ret;
 }
+#endif
 
 void *xmmap(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset) {
@@ -524,7 +555,15 @@ ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
         char buf[count];
         ssize_t read;
         if (offset)
+#ifndef SVB_MINGW
             read = pread(in_fd, buf, count, *offset);
+#else
+        {
+            lseek(in_fd, *offset, SEEK_SET);
+            offset = nullptr;
+            continue;
+        }
+#endif
         else
             read = xread(in_fd, buf, count);
         if (read < 0) {
@@ -573,6 +612,7 @@ int xinotify_init1(int flags) {
 }
 #endif
 
+#ifndef SVB_MINGW
 char *xrealpath(const char *path, char *resolved_path) {
     char buf[PATH_MAX];
     char *ret = realpath(path, buf);
@@ -583,6 +623,7 @@ char *xrealpath(const char *path, char *resolved_path) {
     }
     return ret;
 }
+#endif
 
 #ifndef SVB_WIN32
 int xmknod(const char *pathname, mode_t mode, dev_t dev) {

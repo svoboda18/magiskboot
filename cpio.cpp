@@ -50,9 +50,6 @@ mode(x8u(h->mode)), uid(x8u(h->uid)), gid(x8u(h->gid)), filesize(x8u(h->filesize
 {}
 
 static void read_config(const char* config, const char* entry, uint32_t* mode) {
-    if (access(config, F_OK) != 0)
-        return;
-
     file_readline(config, [&](string_view line) -> bool {
         if (line.empty() || line[0] == '#')
             return true;
@@ -79,7 +76,7 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
         return entries;
 
     for (dirent *entry; (entry = xreaddir(d));) {
-        char *filename = (char *)xmalloc(strlen(entry->d_name) + strlen(path) + 2);
+        char filename[entry->d_namlen + strlen(path) + 2];
         struct stat st;
 
         if (sprintf(filename, "%s/%s", path, entry->d_name) < 0 ||
@@ -87,9 +84,9 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
             break;
         }
 
+        uint32_t mode = st.st_mode & 0777;
         auto name = filename + strlen(root) + 1;
         auto type = st.st_mode & S_IFMT;
-        auto mode = st.st_mode & 0777;
         /* TODO: read uid, gid from config */
         read_config(config, name, &mode);
 
@@ -100,20 +97,19 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
             e->data = xmalloc(m.sz);
             memcpy(e->data, m.buf, m.sz);
         } else if (type == S_IFLNK) {
-            char* ln_target = (char *)xmalloc(st.st_size + 1);
-            int read_cnt = xreadlink(filename, ln_target, st.st_size + 1);
+            char ln_target[st.st_size + 1];
+            int read_cnt = xreadlink(filename, ln_target, st.st_size);
 
             if (read_cnt == -1 || read_cnt > st.st_size) {
-                free(ln_target);
+                errno = EINVAL;
                 break;
             }
             e->filesize = st.st_size;
-            e->data = move(ln_target);
+            e->data = strdup(ln_target);
         } else if (type == S_IFDIR) {
             entries.merge(recursive_dir_iterator(root, config, filename));
         }
         entries.emplace(name, e);
-        free(filename);
     }
 
     closedir(d);
@@ -122,7 +118,7 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
 
 void cpio::dump(const char *file) {
     fprintf(stderr, "Dump cpio: [%s]\n", file);
-    dump(xfopen(file, "we"));
+    dump(xfopen(file, "we" BINARY));
 }
 
 void cpio::rm(entry_map::iterator it) {
@@ -167,11 +163,7 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
         char target[4096];
         memcpy(target, e.second->data, e.second->filesize);
         target[e.second->filesize] = '\0';
-#ifdef SVB_WIN32
-        xxsymlink(target, file);
-#else
         symlink(target, file);
-#endif
     }
 #ifdef SVB_WIN32
     FILE *config = fopen("cpio", "a");
@@ -221,7 +213,7 @@ void cpio::load_cpio(const char* dir, const char* config, bool sync) {
             rm(rhs++);
         } else if (res == 0) { // smh is same, maybe
             is_new = rhs->second->filesize != lhs->second->filesize ||
-                     (rhs->second->mode & 0777) != (lhs->second->mode & 0777) ||
+                     rhs->second->mode != lhs->second->mode ||
                      memcmp(lhs->second->data, rhs->second->data, lhs->second->filesize) != 0;
         } // smh is added
 
@@ -234,11 +226,10 @@ void cpio::load_cpio(const char* dir, const char* config, bool sync) {
             insert(lhs->first, lhs->second.release());
         }
 
-        /* always erase lhs */
-        if (res >= 0) {
-            lhs->second.reset();
-            lhs = dentries.erase(lhs);
-            if (res == 0) ++rhs;
+        if (res > 0) {
+            ++lhs;
+        } else if (res == 0)  {
+            ++lhs; ++rhs;
         }
     }
 }

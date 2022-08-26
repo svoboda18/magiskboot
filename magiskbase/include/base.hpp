@@ -4,10 +4,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
-#include <cstdio>
-#include <stdio.h>
 #else
 #include "../missing.hpp"
+#endif
+
+#ifdef SVB_MINGW
+#define BINARY "b"
+#else
+#define BINARY
 #endif
 
 #include "../xwrap.hpp"

@@ -1,5 +1,4 @@
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
@@ -14,6 +13,7 @@ using namespace std;
 #include <sys/prctl.h>
 #include <sys/sysmacros.h>
 #include <syscall.h>
+#include <sys/wait.h>
 
 int fork_dont_care() {
     if (int pid = xfork()) {
@@ -146,6 +146,7 @@ int parse_int(string_view s) {
     }
     return val;
 }
+#endif
 
 uint32_t binary_gcd(uint32_t u, uint32_t v) {
     if (u == 0) return v;
@@ -163,7 +164,7 @@ uint32_t binary_gcd(uint32_t u, uint32_t v) {
     } while (v != 0);
     return u << shift;
 }
-
+#ifndef SVB_WIN32
 int switch_mnt_ns(int pid) {
     char mnt[32];
     snprintf(mnt, sizeof(mnt), "/proc/%d/ns/mnt", pid);
