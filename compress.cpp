@@ -586,7 +586,7 @@ void decompress(char *infile, const char *outfile) {
     bool in_std = infile == "-"sv;
     bool rm_in = false;
 
-    FILE *in_fp = in_std ? stdin : xfopen(infile, "re" BINARY);
+    FILE *in_fp = in_std ? stdin : xfopen(infile, "re");
     stream_ptr strm;
 
     char buf[4096];
@@ -619,7 +619,7 @@ void decompress(char *infile, const char *outfile) {
                 }
             }
 
-            FILE *out_fp = outfile == "-"sv ? stdout : xfopen(outfile, "we" BINARY);
+            FILE *out_fp = outfile == "-"sv ? stdout : xfopen(outfile, "we");
             strm = get_decoder(type, make_unique<fp_stream>(out_fp));
             if (ext) *ext = '.';
         }
@@ -642,7 +642,7 @@ void compress(const char *method, const char *infile, const char *outfile) {
     bool in_std = infile == "-"sv;
     bool rm_in = false;
 
-    FILE *in_fp = in_std ? stdin : xfopen(infile, "re" BINARY);
+    FILE *in_fp = in_std ? stdin : xfopen(infile, "re");
     FILE *out_fp;
 
     if (outfile == nullptr) {
@@ -658,7 +658,7 @@ void compress(const char *method, const char *infile, const char *outfile) {
             rm_in = true;
         }
     } else {
-        out_fp = outfile == "-"sv ? stdout : xfopen(outfile, "we" BINARY);
+        out_fp = outfile == "-"sv ? stdout : xfopen(outfile, "we");
     }
 
     auto strm = get_encoder(fmt, make_unique<fp_stream>(out_fp));

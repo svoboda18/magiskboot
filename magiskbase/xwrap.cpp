@@ -36,9 +36,6 @@ FILE *xfdopen(int fd, const char *mode) {
 }
 
 int xopen(const char *pathname, int flags) {
-#ifdef SVB_MINGW
-    flags |= O_BINARY;
-#endif
     int fd = open(pathname, flags);
     if (fd < 0) {
         PLOGE("open: %s", pathname);
@@ -47,9 +44,6 @@ int xopen(const char *pathname, int flags) {
 }
 
 int xopen(const char *pathname, int flags, mode_t mode) {
-#ifdef SVB_MINGW
-    flags |= O_BINARY;
-#endif
     int fd = open(pathname, flags, mode);
     if (fd < 0) {
         PLOGE("open: %s", pathname);

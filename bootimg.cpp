@@ -21,9 +21,6 @@ using namespace std;
 uint32_t dyn_img_hdr::j32 = 0;
 uint64_t dyn_img_hdr::j64 = 0;
 
-#ifdef SVB_MINGW
-#define creat(path, mode) xopen(path, O_TRUNC | O_RDWR | O_CREAT, mode)
-#endif
 #define PADDING 15
 
 static void decompress(format_t type, int fd, const void *in, size_t size) {

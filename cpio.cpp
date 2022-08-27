@@ -118,7 +118,7 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
 
 void cpio::dump(const char *file) {
     fprintf(stderr, "Dump cpio: [%s]\n", file);
-    dump(xfopen(file, "we" BINARY));
+    dump(xfopen(file, "we"));
 }
 
 void cpio::rm(entry_map::iterator it) {
@@ -176,7 +176,11 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
 void cpio::extract() {
     unlink("cpio");
     rmdir("ramdisk");
+#ifdef SVB_MINGW
+    ::mkdir("ramdisk");
+#else
     ::mkdir("ramdisk", 0744);
+#endif
     for (auto &e : entries)
         extract_entry(e, ("ramdisk/" + e.first).data());
 }
