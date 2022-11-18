@@ -407,7 +407,7 @@ int xsymlink(const char *target, const char *linkpath) {
 }
 
 #if defined SVB_WIN32 && !defined SVB_MINGW
-#define SYMLINK_ID "!<symlink>\xff\xfe"
+#define SYMLINK_ID	"!<symlink>\xff\xfe"
 #define SYMLINK_IDLEN	strlen(SYMLINK_ID)
 #define SYMLINK_MAXSIZE	1024
 int xxsymlink(const char *target, const char *file)
@@ -533,7 +533,6 @@ void *xmmap(void *addr, size_t length, int prot, int flags,
     return ret;
 }
 
-#ifndef SVB_WIN32
 ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     ssize_t ret = sendfile(out_fd, in_fd, offset, count);
     if (ret < 0) {
@@ -541,44 +540,6 @@ ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     }
     return ret;
 }
-#else
-ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
-    ssize_t bytes = 0;
-
-    while (count) {
-        char buf[count];
-        ssize_t read;
-        if (offset)
-#ifndef SVB_MINGW
-            read = pread(in_fd, buf, count, *offset);
-#else
-        {
-            lseek(in_fd, *offset, SEEK_SET);
-            offset = nullptr;
-            continue;
-        }
-#endif
-        else
-            read = xread(in_fd, buf, count);
-        if (read < 0) {
-            bytes = -1;
-            break;
-        }
-        ssize_t write = xwrite(out_fd, buf, read);
-        if (write < 0 || read != write) {
-            bytes = -1;
-            break;
-        }
-        count -= read;
-        bytes += write;
-    }
-    
-    if (bytes == -1)
-        PLOGE("sendfile");
-
-    return bytes;
-}
-#endif
 
 #ifndef SVB_WIN32
 pid_t xfork() {

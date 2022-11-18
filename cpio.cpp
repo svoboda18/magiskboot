@@ -67,20 +67,20 @@ static void read_config(const char* config, const char* entry, uint32_t* mode) {
     });
 }
 
-static cpio::entry_map recursive_dir_iterator(const char* root, const char* config, const char *sub = nullptr) {
-    cpio::entry_map entries;
+static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, const char* config, const char *sub = nullptr) {
     auto path = sub ? sub : root;
-    auto d = opendir(path);
+    auto cur = opendir(path);
 
-    if (errno || !d)
-        return entries;
+    if (errno || !cur)
+        return;
 
-    for (dirent *entry; (entry = xreaddir(d));) {
-        char filename[entry->d_namlen + strlen(path) + 2];
+    for (dirent *entry; (entry = xreaddir(cur));) {
+        char *filename = (char *)malloc(entry->d_namlen + strlen(path) + 2);
         struct stat st;
 
         if (sprintf(filename, "%s/%s", path, entry->d_name) < 0 ||
             xlstat(filename, &st)) {
+            errno = EINVAL;
             break;
         }
 
@@ -107,13 +107,14 @@ static cpio::entry_map recursive_dir_iterator(const char* root, const char* conf
             e->filesize = st.st_size;
             e->data = strdup(ln_target);
         } else if (type == S_IFDIR) {
-            entries.merge(recursive_dir_iterator(root, config, filename));
+            recursive_dir_iterator(entries, root, config, filename);
         }
+		LOG("it: %s\n", name);
         entries.emplace(name, e);
+		free(filename);
     }
 
-    closedir(d);
-    return entries;
+    closedir(cur);
 }
 
 void cpio::dump(const char *file) {
@@ -186,15 +187,16 @@ void cpio::extract() {
 }
 
 void cpio::load_cpio(const char* dir, const char* config, bool sync) {
-    auto dentries = recursive_dir_iterator(dir, config);
+    entry_map dentries;
+    recursive_dir_iterator(dentries, dir, config);
 
-    if (errno != 0) {
+    if (errno) {
         PLOGE("%s [%s]", sync ? "Sync" : "Pack", dir);
         return;
     }
 
     if (!sync) {
-        entries = move(dentries);
+        entries = std::move(dentries);
         return;
     }
 

@@ -248,7 +248,7 @@ int cpio_commands(int argc, char *argv[]) {
     if (access(incpio, R_OK) == 0)
         cpio.load_cpio(incpio);
 
-    int cmdc;
+    unsigned int cmdc;
     char *cmdv[6];
 
     for (int i = 0; i < argc; ++i) {

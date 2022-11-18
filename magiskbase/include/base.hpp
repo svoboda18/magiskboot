@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #ifdef SVB_WIN32
 #include <fcntl.h>
 #include <unistd.h>

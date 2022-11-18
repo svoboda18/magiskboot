@@ -155,7 +155,7 @@ void dyn_img_hdr::load_hdr_file() {
 }
 
 boot_img::boot_img(const char *image) : map(image) {
-    fprintf(stderr, "Parsing boot image: [%s]\n", image);
+    fprintf(stderr, "Parsing image: [%s]\n", image);
     for (uint8_t *addr = map.buf; addr < map.buf + map.sz; ++addr) {
         format_t fmt = check_fmt(addr, map.sz);
         switch (fmt) {
@@ -525,7 +525,7 @@ write_zero(fd, align_padding(lseek(fd, 0, SEEK_CUR) - off.header, page_size))
 
 void repack(const char *src_img, const char *out_img, bool skip_comp) {
     const boot_img boot(src_img);
-    fprintf(stderr, "Repack to boot image: [%s]\n", out_img);
+    fprintf(stderr, "Repack to image: [%s]\n", out_img);
 
     struct {
         uint32_t header;
