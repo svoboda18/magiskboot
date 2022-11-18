@@ -5,8 +5,9 @@ The most complete tool for unpacking and repacking Android boot images.
 
 ## Documentation
 - [MagiskBoot Documentation](https://topjohnwu.github.io/Magisk/tools.html#magiskboot)
-## Build (not for the moment)
-- Using mingw64 environment with `clang`, run `make` command. (`magiskboot.exe` will appear in the `out` folder).
+
+## Build
+- Using mingw64 environment with `clang`, LLVM version 14 and up, run `mingw32-make` command. (`magiskboot.exe` will appear in the `out` folder).
 - if built a non-static variant, all DLLs in `out/obj/lib/shared` must be present in your PATH for successful execution. 
 
 ## What's changed:
