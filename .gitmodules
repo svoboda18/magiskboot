@@ -1,0 +1,3 @@
+[submodule "libnt"]
+	path = libnt
+	url = https://github.com/svoboda18/libnt
