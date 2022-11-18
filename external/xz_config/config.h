@@ -6,7 +6,9 @@
 
 /* How many MiB of RAM to assume if the real amount cannot be determined. */
 #define ASSUME_RAM 128
-
+#ifdef SVB_MINGW  
+typedef unsigned long long sigset_t;
+#else
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 /* #undef ENABLE_NLS */
@@ -22,7 +24,7 @@
 
 /* Define to 1 if you have the <byteswap.h> header file. */
 #define HAVE_BYTESWAP_H 1
-
+#endif
 /* Define to 1 if Capsicum is available. */
 /* #undef HAVE_CAPSICUM */
 
@@ -288,7 +290,9 @@
 #define HAVE_VISIBILITY 1
 
 /* Define to 1 if you have the `wcwidth' function. */
+#ifndef SVB_MINGW
 #define HAVE_WCWIDTH 1
+#endif
 
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1

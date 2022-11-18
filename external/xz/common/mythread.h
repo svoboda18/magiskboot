@@ -157,8 +157,11 @@ mythread_create(mythread *thread, void *(*func)(void *arg), void *arg)
 {
 	sigset_t old;
 	sigset_t all;
+#ifndef SVB_MINGW  
 	sigfillset(&all);
-
+#else
+	all = 255;
+#endif
 	mythread_sigmask(SIG_SETMASK, &all, &old);
 	const int ret = pthread_create(thread, NULL, func, arg);
 	mythread_sigmask(SIG_SETMASK, &old, NULL);
