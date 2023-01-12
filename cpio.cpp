@@ -109,9 +109,9 @@ static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, c
         } else if (type == S_IFDIR) {
             recursive_dir_iterator(entries, root, config, filename);
         }
-		LOG("it: %s\n", name);
+
         entries.emplace(name, e);
-		free(filename);
+        free(filename);
     }
 
     closedir(cur);

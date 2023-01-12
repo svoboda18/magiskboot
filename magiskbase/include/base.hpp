@@ -19,7 +19,10 @@
 #endif
 
 #define LOG(fmt, args...) fprintf(stderr, fmt, ##args)
-#define PLOGE(fmt, args...) LOG(fmt " failed with %d: %s\n", ##args, errno, std::strerror(errno))
-#define LOGE(fmt, args...) { LOG("Error: " fmt, ##args); exit(1); }
+#define LOGE(fmt, args...) { \
+        LOG("Error: " fmt, ##args); \
+        exit(errno); \
+   }
+#define PLOGE(fmt, args...) LOGE(fmt " failed with %d: %s\n", ##args, errno, std::strerror(errno))
 #define LOGW(fmt, args...) LOG("Warning: " fmt, ##args)
 #define LOGD(fmt, args...) LOG("Debug: " fmt, ##args)
