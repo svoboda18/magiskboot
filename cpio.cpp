@@ -45,29 +45,13 @@ static uint32_t x8u(const char *hex) {
 
 cpio_entry::cpio_entry(uint32_t mode) : mode(mode), uid(0), gid(0), filesize(0), data(nullptr) {}
 
+cpio_entry::cpio_entry(uint32_t mode, uint32_t uid, uint32_t gid) : mode(mode), uid(uid), gid(gid), filesize(0), data(nullptr) {}
+
 cpio_entry::cpio_entry(const cpio_newc_header *h) :
 mode(x8u(h->mode)), uid(x8u(h->uid)), gid(x8u(h->gid)), filesize(x8u(h->filesize)), data(nullptr)
 {}
 
-static void read_config(const char* config, const char* entry, uint32_t* mode) {
-    file_readline(config, [&](string_view line) -> bool {
-        if (line.empty() || line[0] == '#')
-            return true;
-        auto tokens = split(string(line), " ");
-
-        if (tokens.size() < 2) {
-            fprintf(stderr, "Ill-formed line in [%s]\n", config);
-            return false;
-        } else if (tokens[0] == entry) {
-            *mode = static_cast<unsigned int>(strtol(tokens[1].data(), nullptr, 8));
-            return false;
-        }
-
-        return true;
-    });
-}
-
-static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, const char* config, const char *sub = nullptr) {
+static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, const char *sub = nullptr) {
     auto path = sub ? sub : root;
     auto cur = opendir(path);
 
@@ -75,7 +59,12 @@ static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, c
         return;
 
     for (dirent *entry; (entry = xreaddir(cur));) {
-        char *filename = (char *)malloc(entry->d_namlen + strlen(path) + 2);
+        char *filename = (char *)malloc(strlen(path) + 2 +
+#ifndef SVB_MINGW
+        strlen(entry->name));
+#else
+        entry->d_namlen);
+#endif
         struct stat st;
 
         if (sprintf(filename, "%s/%s", path, entry->d_name) < 0 ||
@@ -84,30 +73,33 @@ static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, c
             break;
         }
 
-        uint32_t mode = st.st_mode & 0777;
+        auto e = new cpio_entry(st.st_mode, st.st_uid, st.st_gid);
         auto name = filename + strlen(root) + 1;
-        auto type = st.st_mode & S_IFMT;
-        /* TODO: read uid, gid from config */
-        read_config(config, name, &mode);
 
-        auto e = new cpio_entry(type | mode);
-        if (type == S_IFREG) {
+        switch (st.st_mode & S_IFMT) {
+        case S_IFREG:
+        {
             auto m = mmap_data(filename);
             e->filesize = m.sz;
             e->data = xmalloc(m.sz);
             memcpy(e->data, m.buf, m.sz);
-        } else if (type == S_IFLNK) {
-            char ln_target[st.st_size + 1];
+            break;
+        }
+        case S_IFLNK:
+        {
+            char* ln_target = (char *)malloc(st.st_size + 1);
             int read_cnt = xreadlink(filename, ln_target, st.st_size);
 
             if (read_cnt == -1 || read_cnt > st.st_size) {
                 errno = EINVAL;
-                break;
+                return;
             }
             e->filesize = st.st_size;
-            e->data = strdup(ln_target);
-        } else if (type == S_IFDIR) {
-            recursive_dir_iterator(entries, root, config, filename);
+            e->data = ln_target;
+            break;
+        }
+        case S_IFDIR:
+            recursive_dir_iterator(entries, root, filename);
         }
 
         entries.emplace(name, e);
@@ -169,7 +161,7 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
 #ifdef SVB_WIN32
     FILE *config = fopen("cpio", "a");
     /* TODO: add uid, gid to config */
-    fprintf(config, "%s %o\n", e.first.data(), e.second->mode & 0777);
+    fprintf(config, "%s %o %u %u\n", e.first.data(), e.second->mode & 0777, e.second->uid, e.second->gid);
     fclose(config);
 #endif
 }
@@ -188,12 +180,33 @@ void cpio::extract() {
 
 void cpio::load_cpio(const char* dir, const char* config, bool sync) {
     entry_map dentries;
-    recursive_dir_iterator(dentries, dir, config);
+
+    recursive_dir_iterator(dentries, dir);
 
     if (errno) {
         PLOGE("%s [%s]", sync ? "Sync" : "Pack", dir);
         return;
     }
+
+    file_readline(config, [&](string_view line) -> bool {
+        if (line.empty() || line[0] == '#')
+            return true;
+
+        auto tokens = split(string(line), " ");
+
+        if (tokens.size() < 4) {
+            LOGE("Ill-formed line in [%s]\n", config);
+        }
+
+        auto it = dentries.find(tokens[0].data());
+        if (it != dentries.end()) {
+            it->second->mode = it->second->mode & S_IFMT | static_cast<unsigned int>(strtol(tokens[1].data(), nullptr, 8)) & 0777;
+            it->second->uid = strtol(tokens[2].data(), nullptr, 10);
+            it->second->gid = strtol(tokens[3].data(), nullptr, 10);
+        }
+
+        return true;
+    });
 
     if (!sync) {
         entries = std::move(dentries);
@@ -220,15 +233,13 @@ void cpio::load_cpio(const char* dir, const char* config, bool sync) {
         } else if (res == 0) { // smh is same, maybe
             is_new = rhs->second->filesize != lhs->second->filesize ||
                      rhs->second->mode != lhs->second->mode ||
+                     rhs->second->uid != lhs->second->uid ||
+                     rhs->second->gid != lhs->second->gid ||
                      memcmp(lhs->second->data, rhs->second->data, lhs->second->filesize) != 0;
         } // smh is added
 
         if (is_new) {
-            if (rhs != entries.end()) {
-                lhs->second->gid = rhs->second->gid;
-                lhs->second->gid = rhs->second->uid;
-            }
-            fprintf(stderr, "%s entry [%s] (%04o)\n", res > 0 ? "Add new" : "Updated", lhs->first.data(), lhs->second->mode & 0777);
+            fprintf(stderr, "%s entry [%s] (%04o %d %d)\n", res > 0 ? "Add new" : "Updated", lhs->first.data(), lhs->second->mode & 0777, lhs->second->uid, lhs->second->gid);
             insert(lhs->first, lhs->second.release());
         }
 
