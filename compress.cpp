@@ -89,7 +89,7 @@ private:
                 inflate(&strm, flush);
             } else {
                 mode = COPY;
-                bwrite(b, 1);
+                return true;
             }
         }
         strm.next_in = (Bytef *) buf;
@@ -106,7 +106,7 @@ private:
                     code = deflate(&strm, flush);
                     break;
                 case COPY:
-                    return bwrite(buf, len);
+                    return true;
                 default:
                     // should have been handled
                     return false;
@@ -140,7 +140,7 @@ private:
                 }
                 // There is still data in the stream, we need to copy it
                 mode = COPY;
-                bwrite(strm.next_in, strm.avail_in);
+                return true;
             }
         } while (strm.avail_out == 0);
         return true;
