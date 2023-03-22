@@ -8,8 +8,7 @@ override TOPDIR := $(shell cygpath -m $(shell pwd))
 override STATIC := 1
 override SVB_MINGW := 1
 override SVB_FLAGS := -DSVB_WIN32 -DANDROID
-override BUILD_FLAGS := -fno-exceptions -fdiagnostics-absolute-paths -Wno-deprecated-non-prototype \
-						-DHOST
+override BUILD_FLAGS := -fno-exceptions -fdiagnostics-absolute-paths -Wno-deprecated-non-prototype -DHOST
 override BUILD_EXTRAS := 0
 override BIN_EXT := .exe
 override LIB_EXT := .a
@@ -20,7 +19,7 @@ override LIB_EXT := .dll
 endif
 
 ifeq ($(DEBUG),1)
-override BUILD_FLAGS += -g -Wall -Wextra -Wpedantic -Wconversion-null -Wno-gnu-include-next
+override BUILD_FLAGS += -ggdb -ffunction-sections -Wall -Wextra -Wpedantic -Wconversion-null -Wno-gnu-include-next
 override SVB_FLAGS += -DSVB_DEBUG
 else
 override BUILD_FLAGS += -Oz

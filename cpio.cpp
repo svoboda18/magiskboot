@@ -75,18 +75,14 @@ static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, c
 
         auto e = new cpio_entry(st.st_mode, st.st_uid, st.st_gid);
         auto name = filename + strlen(root) + 1;
+        auto type = st.st_mode & S_IFMT;
 
-        switch (st.st_mode & S_IFMT) {
-        case S_IFREG:
-        {
+        if (type == S_IFREG) {
             auto m = mmap_data(filename);
             e->filesize = m.sz;
             e->data = xmalloc(m.sz);
             memcpy(e->data, m.buf, m.sz);
-            break;
-        }
-        case S_IFLNK:
-        {
+        } else if (type == S_IFLNK) {
             char* ln_target = (char *)malloc(st.st_size + 1);
             int read_cnt = xreadlink(filename, ln_target, st.st_size);
 
@@ -96,9 +92,7 @@ static void recursive_dir_iterator(cpio::entry_map &entries, const char* root, c
             }
             e->filesize = st.st_size;
             e->data = ln_target;
-            break;
-        }
-        case S_IFDIR:
+        } else { // assume S_IFDIR
             recursive_dir_iterator(entries, root, filename);
         }
 
@@ -160,7 +154,6 @@ void cpio::extract_entry(const entry_map::value_type &e, const char *file) {
     }
 #ifdef SVB_WIN32
     FILE *config = fopen("cpio", "a");
-    /* TODO: add uid, gid to config */
     fprintf(config, "%s %o %u %u\n", e.first.data(), e.second->mode & 0777, e.second->uid, e.second->gid);
     fclose(config);
 #endif
@@ -200,7 +193,8 @@ void cpio::load_cpio(const char* dir, const char* config, bool sync) {
 
         auto it = dentries.find(tokens[0].data());
         if (it != dentries.end()) {
-            it->second->mode = it->second->mode & S_IFMT | static_cast<unsigned int>(strtol(tokens[1].data(), nullptr, 8)) & 0777;
+            it->second->mode &= S_IFMT;
+            it->second->mode |= static_cast<unsigned int>(strtol(tokens[1].data(), nullptr, 8)) & 0777;
             it->second->uid = strtol(tokens[2].data(), nullptr, 10);
             it->second->gid = strtol(tokens[3].data(), nullptr, 10);
         }
@@ -239,7 +233,7 @@ void cpio::load_cpio(const char* dir, const char* config, bool sync) {
         } // smh is added
 
         if (is_new) {
-            fprintf(stderr, "%s entry [%s] (%04o %d %d)\n", res > 0 ? "Add new" : "Updated", lhs->first.data(), lhs->second->mode & 0777, lhs->second->uid, lhs->second->gid);
+            fprintf(stderr, "%s entry [%s] (%04o)\n", res > 0 ? "Add new" : "Updated", lhs->first.data(), lhs->second->mode & 0777);
             insert(lhs->first, lhs->second.release());
         }
 
