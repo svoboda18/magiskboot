@@ -365,7 +365,7 @@ $(OBJ)/magiskboot/%.o: %.cpp
 	@$(CXX) -static $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 MAGISKBOOT_LD := $(LIB)/libmincrypt.a $(LIB)/liblzma.a $(LIB)/libbz2.a \
-				 $(LIB)/liblz4.a $(LIB)/libzopfli.a $(LIB)/libfdt.a $(LIB)/libz.a
+		 $(LIB)/liblz4.a $(LIB)/libzopfli.a $(LIB)/libfdt.a $(LIB)/libz.a
 ifeq ($(STATIC),0)
 override MAGISKBOOT_LD := $(shell echo $(MAGISKBOOT_LD) | sed "s@\(obj/lib/\)lib\(\w\+\)\.a@\1shared/svb\2\.dll@g")
 endif
