@@ -4,18 +4,18 @@ CROSS_COMPILE ?=
 SH ?= sh
 
 # Build configuration (static only, shared are broken)
-override TOPDIR := $(shell cygpath -m $(shell pwd))
-override STATIC := 1
-override SVB_MINGW := 1
-override SVB_FLAGS := -DSVB_WIN32 -DANDROID
-override BUILD_FLAGS := -fno-exceptions -fdiagnostics-absolute-paths -Wno-deprecated-non-prototype -DHOST
-override BUILD_EXTRAS := 0
-override BIN_EXT := .exe
-override LIB_EXT := .a
+override TOPDIR ?= $(shell cygpath -m $(shell pwd))
+override STATIC ?= 1
+override SVB_MINGW ?= 1
+override SVB_FLAGS ?= -DSVB_WIN32 -DANDROID
+override BUILD_FLAGS ?= -fno-exceptions -fdiagnostics-absolute-paths -Wno-deprecated-non-prototype -DHOST
+override BUILD_EXTRAS ?= 0
+override BIN_EXT ?= .exe
+override LIB_EXT ?= .a
 
 ifeq ($(STATIC),0)
 $(warning WARNING: Host libraries are statically linked)
-override LIB_EXT := .dll
+override LIB_EXT ?= .dll
 endif
 
 ifeq ($(DEBUG),1)
@@ -24,7 +24,7 @@ override SVB_FLAGS += -DSVB_DEBUG
 else
 override BUILD_FLAGS += -Oz
 endif
-override LDFLAGS := -Wl,-gc-sections
+override LDFLAGS ?= -Wl,-gc-sections
 
 ifeq ($(SVB_MINGW),1)
 override SVB_FLAGS += -DSVB_MINGW -DHAVE_LIB_NT_H -I$(TOPDIR)/libnt/include
@@ -33,48 +33,48 @@ else
 all:: print_info init_out res magiskboot
 endif
 
-override CC := $(CROSS_COMPILE)clang
-override CFLAGS := $(CFLAGS) $(BUILD_FLAGS) $(SVB_FLAGS)
-override CXX := $(CROSS_COMPILE)clang++
-override CXXSTD := c++17
-override CXXLIB := libc++
-override CXXFLAGS := $(CXXFLAGS) -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) $(SVB_FLAGS)
+override CC ?= $(CROSS_COMPILE)clang
+override CFLAGS ?= $(CFLAGS) $(BUILD_FLAGS) $(SVB_FLAGS)
+override CXX ?= $(CROSS_COMPILE)clang++
+override CXXSTD ?= c++17
+override CXXLIB ?= libc++
+override CXXFLAGS ?= $(CXXFLAGS) -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) $(SVB_FLAGS)
 # LD is set for shared libs
 ifeq ($(STATIC),0)
-override LD := $(CROSS_COMPILE)clang $(BUILD_FLAGS)
-override LDXX := $(CROSS_COMPILE)clang++ -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) -static-libstdc++
+override LD ?= $(CROSS_COMPILE)clang $(BUILD_FLAGS)
+override LDXX ?= $(CROSS_COMPILE)clang++ -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) -static-libstdc++
 #override LDFLAGS += -Wl,--large-address-aware
 endif
-override STRIP_CMD := $(CROSS_COMPILE)strip
-override STRIPFLAGS := $(STRIPFLAGS) --strip-all -R .comment -R .gnu.version --strip-unneeded
-override AR := $(CROSS_COMPILE)ar
-override ARFLAGS := rcsD
+override STRIP_CMD ?= $(CROSS_COMPILE)strip
+override STRIPFLAGS ?= $(STRIPFLAGS) --strip-all -R .comment -R .gnu.version --strip-unneeded
+override AR ?= $(CROSS_COMPILE)ar
+override ARFLAGS ?= rcsD
 
-override DEPLOY := $(TOPDIR)/build
-override OUT := $(TOPDIR)/out
-override SRP := $(OUT)
-override OBJ := $(OUT)/obj
-override LIB := $(OBJ)/lib
-override SLIB := $(LIB)/shared
-override LIB_OUT := $(LIB)
+override DEPLOY ?= $(TOPDIR)/build
+override OUT ?= $(TOPDIR)/out
+override SRP ?= $(OUT)
+override OBJ ?= $(OUT)/obj
+override LIB ?= $(OBJ)/lib
+override SLIB ?= $(LIB)/shared
+override LIB_OUT ?= $(LIB)
 ifeq ($(STATIC),0)
-override LIB_OUT := $(SLIB)
+override LIB_OUT ?= $(SLIB)
 endif
 
-override STRIP := $(SH) $(TOPDIR)/scripts/strip.sh
-override MKDIR := $(SH) $(TOPDIR)/scripts/mkdir.sh
+override STRIP ?= $(SH) $(TOPDIR)/scripts/strip.sh
+override MKDIR ?= $(SH) $(TOPDIR)/scripts/mkdir.sh
 
-override BIN_RES := $(OBJ)/bin.res
-override DLL_RES := $(OBJ)/dll.res
+override BIN_RES ?= $(OBJ)/bin.res
+override DLL_RES ?= $(OBJ)/dll.res
 
 ifeq ($(SVB_MINGW),1)
-override LIBS := -lWs2_32 $(LIB)/libnt.a -limagehlp -lpthread
+override LIBS ?= -lWs2_32 $(LIB)/libnt.a -limagehlp -lpthread
 endif
 
-override NTLIB := libnt
+override NTLIB ?= libnt
 
 override GNUMAKEFLAGS += --output-sync=line --no-print-directory
-override MAKEFLAGS := -$(MAKEFLAGS) $(GNUMAKEFLAGS) --warn-undefined-variables
+override MAKEFLAGS ?= -$(MAKEFLAGS) $(GNUMAKEFLAGS) --warn-undefined-variables
 
 MAGISKBOOT_SRC = \
     bootimg.cpp \
@@ -86,7 +86,7 @@ MAGISKBOOT_SRC = \
     pattern.cpp \
     cpio.cpp \
     main.cpp
-MAGISKBOOT_OBJ := $(patsubst %.cpp,$(OBJ)/magiskboot/%.o,$(MAGISKBOOT_SRC))
+MAGISKBOOT_OBJ ?= $(patsubst %.cpp,$(OBJ)/magiskboot/%.o,$(MAGISKBOOT_SRC))
 
 LIBBASE_SRC = \
     magiskbase/files.cpp \
@@ -94,7 +94,7 @@ LIBBASE_SRC = \
     magiskbase/xwrap.cpp \
     magiskbase/stream.cpp
 
-LIBBASE_OBJ := $(patsubst %.cpp,$(OBJ)/%.o,$(LIBBASE_SRC))
+LIBBASE_OBJ ?= $(patsubst %.cpp,$(OBJ)/%.o,$(LIBBASE_SRC))
 
 LIBMINCRYPT_SRC = \
     external/mincrypt/dsa_sig.c \
@@ -261,7 +261,7 @@ LIBFDT_SRC = \
     external/libfdt/fdt_wip.c
 LIBFDT_OBJ = $(patsubst %.c,$(OBJ)/%.o,$(LIBFDT_SRC))
 
-BUILD_SHARED := \
+BUILD_SHARED ?= \
 	$(SLIB)/svbmincrypt.dll \
 	$(SLIB)/svbzopfli.dll \
 	$(SLIB)/svbbase.dll \
@@ -270,16 +270,16 @@ BUILD_SHARED := \
 	$(SLIB)/svbfdt.dll \
 	$(SLIB)/svbbz2.dll \
 	$(SLIB)/svbz.dll
-BUILD_FILES := $(SRP)/magiskboot$(BIN_EXT)
+BUILD_FILES ?= $(SRP)/magiskboot$(BIN_EXT)
 
-BUILD_EXTRA :=
+BUILD_EXTRA ?=
 
 ifeq (1,$(STATIC))
-override BUILD_SHARED :=
+override BUILD_SHARED ?=
 endif
 
 ifeq (1,$(BUILD_EXTRAS))
-override BUILD_FILES := $(BUILD_FILES) $(BUILD_EXTRAS)
+override BUILD_FILES ?= $(BUILD_FILES) $(BUILD_EXTRAS)
 endif
 
 override MAKEFLAGS += -rsR
@@ -322,7 +322,7 @@ clean:
 	@echo -e "  RM\t    bin"
 	@rm -rf $(OUT)
 
-override INCLUDES := \
+override INCLUDES ?= \
     -Iinclude \
     -I$(TOPDIR)/external \
     -I$(TOPDIR)/external/libfdt \
@@ -364,10 +364,10 @@ $(OBJ)/magiskboot/%.o: %.cpp
 	@echo -e "  CXX\t    `basename $@`"
 	@$(CXX) -static $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-MAGISKBOOT_LD := $(LIB)/libmincrypt.a $(LIB)/liblzma.a $(LIB)/libbz2.a \
+MAGISKBOOT_LD ?= $(LIB)/libmincrypt.a $(LIB)/liblzma.a $(LIB)/libbz2.a \
 		 $(LIB)/liblz4.a $(LIB)/libzopfli.a $(LIB)/libfdt.a $(LIB)/libz.a
 ifeq ($(STATIC),0)
-override MAGISKBOOT_LD := $(shell echo $(MAGISKBOOT_LD) | sed "s@\(obj/lib/\)lib\(\w\+\)\.a@\1shared/svb\2\.dll@g")
+override MAGISKBOOT_LD ?= $(shell echo $(MAGISKBOOT_LD) | sed "s@\(obj/lib/\)lib\(\w\+\)\.a@\1shared/svb\2\.dll@g")
 endif
 $(OUT)/magiskboot$(BIN_EXT): $(MAGISKBOOT_OBJ) $(LIB)/libmagiskbase.a $(MAGISKBOOT_LD)
 	@$(MKDIR) -p `dirname $@`
