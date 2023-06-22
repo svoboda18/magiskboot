@@ -33,22 +33,22 @@ else
 all:: print_info init_out res magiskboot
 endif
 
-override CC ?= $(CROSS_COMPILE)clang
-override CFLAGS ?= $(CFLAGS) $(BUILD_FLAGS) $(SVB_FLAGS)
-override CXX ?= $(CROSS_COMPILE)clang++
+override CC := $(CROSS_COMPILE)clang
+override CFLAGS ?= $(BUILD_FLAGS) $(SVB_FLAGS)
+override CXX := $(CROSS_COMPILE)clang++
 override CXXSTD ?= c++17
 override CXXLIB ?= libc++
-override CXXFLAGS ?= $(CXXFLAGS) -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) $(SVB_FLAGS)
+override CXXFLAGS ?= -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) $(SVB_FLAGS)
 # LD is set for shared libs
 ifeq ($(STATIC),0)
-override LD ?= $(CROSS_COMPILE)clang $(BUILD_FLAGS)
-override LDXX ?= $(CROSS_COMPILE)clang++ -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) -static-libstdc++
+override LD := $(CROSS_COMPILE)clang $(BUILD_FLAGS)
+override LDXX := $(CROSS_COMPILE)clang++ -std=$(CXXSTD) -stdlib=$(CXXLIB) $(BUILD_FLAGS) -static-libstdc++
 #override LDFLAGS += -Wl,--large-address-aware
 endif
 override STRIP_CMD ?= $(CROSS_COMPILE)strip
-override STRIPFLAGS ?= $(STRIPFLAGS) --strip-all -R .comment -R .gnu.version --strip-unneeded
-override AR ?= $(CROSS_COMPILE)ar
-override ARFLAGS ?= rcsD
+override STRIPFLAGS ?= --strip-all -R .comment -R .gnu.version --strip-unneeded
+override AR := $(CROSS_COMPILE)ar
+override ARFLAGS := rcsD
 
 override DEPLOY ?= $(TOPDIR)/build
 override OUT ?= $(TOPDIR)/out
